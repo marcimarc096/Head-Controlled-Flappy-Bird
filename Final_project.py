@@ -142,6 +142,8 @@ class Flappy_Game:
         self.pip_image = pygame.image.load(self.pipe_image_file, "Pipe Image")
         self.pipe_starting_template = self.pip_image.get_rect()
 
+        self.mirrorZone = pygame.Rect(1000, 0, 4000, self.window_y_axis)
+
         self.game_settings()
 
         """Facial Recognition"""
@@ -186,7 +188,12 @@ class Flappy_Game:
                 if results.multi_face_landmarks and len(results.multi_face_landmarks) > 0:
 
                     marker = results.multi_face_landmarks[0].landmark[self.detection_position].y
-                    self.character_frame.centery = +self.window_y_axis/2 + (marker - 0.5) * 1.5 * self.window_y_axis
+
+                    if self.character_frame.centerx > self.mirrorZone.left and self.character_frame.centerx < self.mirrorZone.right:
+                        self.character_frame.centery = +self.window_y_axis/2 - (marker - 0.5) * 1.5 * self.window_y_axis
+                    
+                    else:
+                        self.character_frame.centery = +self.window_y_axis/2 + (marker - 0.5) * 1.5 * self.window_y_axis
 
                     if self.character_frame.top < 0:
                         self.character_frame.y = 0
@@ -210,10 +217,17 @@ class Flappy_Game:
                 if len_pipe_frames > 0 and self.pipe_frames[0][0].right < 0:
                     self.pipe_frames.popleft()
 
+                "Update the mirror zone"
+                self.mirrorZone.x -= self.speed()
+                endOfMirrorZone = self.mirrorZone.right
+                if endOfMirrorZone < 0:
+                    self.mirrorZone.x = 2500
+
                 """Update screen"""
                 # Putting the frames onto the screen
 
-                pygame.surfarray.blit_array(self.game_screen, self.frame)
+                pygame.surfarray.blit_array(self.game_screen, self.frame)           #vielleicht falsches Argument
+                pygame.draw.rect(self.game_screen, (255,0,0), self.mirrorZone)
                 self.game_screen.blit(self.character, self.character_frame)
                 counter = True
                 for pipe_frame in self.pipe_frames:
