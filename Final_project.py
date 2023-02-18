@@ -21,10 +21,11 @@ class Flappy_Game:
         self.font = "purisa.tff"
         self.color = (0, 0, 0)
         self.image = "black_ghost_sprite.png"
-        self.pipe_image_file = "Black_sprite.png"
+        self.pipe_image_file = "BlackPipe.png"
+        self.itemImage = "item.png"
 
         # Pipe initializations
-        self.pip_image, self.pipe_frames, self.pipe_starting_template = None, None, None
+        self.pipe_image, self.pipe_frames, self.pipe_starting_template = None, None, None
         # character initializations
         self.frame, self.character, self.character_frame = None, None, None
 
@@ -33,6 +34,8 @@ class Flappy_Game:
         self.camera_id = 0  # Video Capturing From the Camera "0" is the id of Camera
         self.space_between_pipes = 250
         self.divide_factor = 6
+        self.slower = 1
+        self.slowDownTimer = None
 
         self.Clock, self.Game_Stage, self.Pipe_spawning, self.Pipe_time_diff = None, None, None, None
         self.Pipe_spawn_distance, self.update_Score, self.game_running, self.game_score = None, None, None, None
@@ -43,12 +46,19 @@ class Flappy_Game:
     def playing_character(self, image):
         self.image = image
 
-    def character_(self):
-        self.character = pygame.image.load(self.image, "Game Character")
-        width = self.character.get_width() / self.divide_factor
-        height = self.character.get_height() / self.divide_factor
-        self.character = pygame.transform.scale(self.character, (width, height))
-        return self.character
+    def createCharacter(self):
+        character = pygame.image.load(self.image, "Game Character")
+        width = character.get_width() / self.divide_factor
+        height = character.get_height() / self.divide_factor
+        character = pygame.transform.scale(character, (width, height))
+        return character
+
+    def createItem(self):
+        item = pygame.image.load(self.itemImage, "Game Item")
+        width = item.get_width() / self.divide_factor
+        height = item.get_height() / self.divide_factor
+        item = pygame.transform.scale(item, (width, height))
+        return item
 
     # def del_pipes_left(self):
     #     len_pipe_frames = len(self.pipe_frames)
@@ -57,11 +67,12 @@ class Flappy_Game:
     #         self.pipe_frames.popleft()
 
     def speed(self):
-        return self.Pipe_spawn_distance / self.Pipe_time_diff
+        return self.Pipe_spawn_distance / self.Pipe_time_diff * self.slower
 
     def game_settings(self):
         self.Clock, self.Game_Stage, self.Pipe_spawning, self.Pipe_time_diff = time.time(), 1, 0, 40
-        self.Pipe_spawn_distance, self.game_score = 500, 0
+        self.Pipe_spawn_distance = 400
+        self.game_score = 0
         self.game_running = True
         self.update_Score = False
         self.pipe_speed = self.speed()
@@ -93,7 +104,7 @@ class Flappy_Game:
         pass
 
     def timings(self):
-        self.Pipe_time_diff *= 5 / 6
+        self.Pipe_time_diff *= 0.9
         self.Game_Stage += 1
         self.Clock = time.time()
 
@@ -128,21 +139,24 @@ class Flappy_Game:
         self.game_screen = pygame.display.set_mode(self.window_game_size)  # Setting pygame Screen
 
         """Character Setting"""
-        self.character = pygame.image.load(self.image, "Game Character")
-        width = self.character.get_width()/self.divide_factor
-        height = self.character.get_height()/self.divide_factor
-        self.character = pygame.transform.scale(self.character, (width, height))
+        self.character = self.createCharacter()
 
         self.character_frame = self.character.get_rect()
         x = self.window_x_axis // 6
         y = self.window_y_axis // 2
         self.character_frame.center = (self.window_x_axis // 6, self.window_y_axis // 2)
 
-        self.pipe_frames = deque()
-        self.pip_image = pygame.image.load(self.pipe_image_file, "Pipe Image")
-        self.pipe_starting_template = self.pip_image.get_rect()
+        "item Setting"
+        self.item = self.createItem()
+        self.item_frame = self.item.get_rect()
+        self.item_frame.x = random.randint(5000, 10000)
+        self.item_frame.y = random.randint(0 + 100, self.window_y_axis - 100)
 
-        self.mirrorZone = pygame.Rect(1000, 0, 4000, self.window_y_axis)
+        self.pipe_frames = deque()
+        self.pipe_image = pygame.image.load(self.pipe_image_file, "Pipe Image")
+        self.pipe_starting_template = self.pipe_image.get_rect()
+
+        self.mirrorZone = pygame.Rect(2000, 0, 4000, self.window_y_axis)
 
         self.game_settings()
 
@@ -217,18 +231,40 @@ class Flappy_Game:
                 if len_pipe_frames > 0 and self.pipe_frames[0][0].right < 0:
                     self.pipe_frames.popleft()
 
+                "Update the item"
+                self.item_frame.x -= self.speed()
+                if self.character_frame.colliderect(self.item_frame):
+                    self.slower *= 0.4
+                    self.item_frame.x += random.randint(7500, 12500)
+                    self.item_frame.y = random.randint(0 + 100, self.window_y_axis - 100)
+                    self.slowDownTimer = 240
+                if self.item_frame.right < 0:
+                    self.item_frame.x += random.randint(7500, 12500)
+                    self.item_frame.y = random.randint(0 + 100, self.window_y_axis - 100)
+                if self.slowDownTimer is not None:
+                    self.slowDownTimer -= 1
+                    if self.slowDownTimer < 0:
+                        self.slowDownTimer = None
+                        self.slower *= 2
+
+
                 "Update the mirror zone"
                 self.mirrorZone.x -= self.speed()
                 endOfMirrorZone = self.mirrorZone.right
                 if endOfMirrorZone < 0:
-                    self.mirrorZone.x = 2500
+                    self.mirrorZone.x = random.randint(2500, 7500)
 
                 """Update screen"""
                 # Putting the frames onto the screen
 
                 pygame.surfarray.blit_array(self.game_screen, self.frame)           #vielleicht falsches Argument
-                pygame.draw.rect(self.game_screen, (255,0,0), self.mirrorZone)
+                # pygame.draw.rect(self.game_screen, (255,0,0), self.mirrorZone)
+                mirrorSurface = pygame.Surface ((self.mirrorZone.width,self.mirrorZone.height))
+                mirrorSurface.set_alpha(125)
+                mirrorSurface.fill((255,0,0))
+                self.game_screen.blit(mirrorSurface, (self.mirrorZone.x, self.mirrorZone.y))
                 self.game_screen.blit(self.character, self.character_frame)
+                self.game_screen.blit(self.item, self.item_frame)
                 counter = True
                 for pipe_frame in self.pipe_frames:
                     # Check if bird went through to update score
@@ -241,8 +277,8 @@ class Flappy_Game:
                             self.update_Score = True
                     # Update screen
 
-                    self.game_screen.blit(self.pip_image, pipe_frame[1])
-                    self.game_screen.blit(pygame.transform.flip(self.pip_image, 0, 1), pipe_frame[0])
+                    self.game_screen.blit(self.pipe_image, pipe_frame[1])
+                    self.game_screen.blit(pygame.transform.flip(self.pipe_image, 0, 1), pipe_frame[0])
 
                 if counter:
                     self.update_Score = False
@@ -260,17 +296,24 @@ class Flappy_Game:
 
                 if self.Pipe_spawning == 0:
                     top = self.pipe_starting_template.copy()
-                    top.x = random.randint(self.window_x_axis-100, self.window_x_axis)
-                    top.y = random.randint(110 - 1000, self.window_y_axis - 120 - self.space_between_pipes - 1000) + random.randint(-100, 50)
+                    x = self.mirrorZone.left
 
-                    bottom = self.pipe_starting_template.copy()
-                    bottom.x = random.randint(self.window_x_axis-100, self.window_x_axis)
-                    bottom.y = top.y + random.randint(900, 1000) + self.space_between_pipes
+                    numTries = 10
+                    while numTries > 0 and (abs (self.mirrorZone.left - x) < 400 or abs (self.mirrorZone.right -x) < 400):                                 #Sicherheitsabstand um Anfang und Ende
+                        numTries -= 1                          
+                        x = random.randint(self.window_x_axis, self.window_x_axis+250)           #Röhrenstreuung
+                    if numTries > 0:                                    
+                        top.x = x
+                        top.y = random.randint(110 - 1000, self.window_y_axis - 120 - self.space_between_pipes - 1000) + random.randint(-100, 50)
 
-                    # Appending the Pipes
-                    self.pipe_frames.append([top, bottom])
+                        bottom = self.pipe_starting_template.copy()
+                        bottom.x = top.x
+                        bottom.y = top.y + random.randint(900, 1000) + self.space_between_pipes
 
-                self.Pipe_spawning += self.timer
+                        # Appending the Pipes
+                        self.pipe_frames.append([top, bottom])
+
+                self.Pipe_spawning += self.speed() / 16
                 if self.Pipe_spawning >= self.Pipe_time_diff:
                     self.Pipe_spawning = 0
 
